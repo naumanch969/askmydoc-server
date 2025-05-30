@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "moduleResolution": "nodenext",
+    "module": "NodeNext",
+    "target": "ES6",
+    "esModuleInterop": true,
+    "strict": true,
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ],
+  },
+  "include": [
+    "src",
+    "src/types"
+  ]
+}

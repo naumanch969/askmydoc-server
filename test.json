@@ -1,0 +1,105 @@
+{
+    "title": "The Arbitration Act, 1940",
+    "sections": [
+      {
+        "section": 1,
+        "title": "Short title, extent and commencement",
+        "content": "This Act may be called the Arbitration Act, 1940. It extends to the whole of Pakistan. It shall come into force on the 1st day of July, 1940."
+      },
+      {
+        "section": 2,
+        "title": "Definitions",
+        "content": {
+          "arbitration_agreement": "A written agreement to submit present or future differences to arbitration, whether an arbitrator is named therein or not.",
+          "award": "An arbitration award.",
+          "court": "A Civil Court having jurisdiction to decide the question forming the subject-matter of the reference if the same had been the subject-matter of a suit."
+        }
+      },
+      {
+        "section": 3,
+        "title": "Provisions implied in arbitration agreement",
+        "content": "An arbitration agreement shall be deemed to include the provisions set out in the First Schedule insofar as they are applicable."
+      },
+      {
+        "section": 4,
+        "title": "Agreement that arbitrators be appointed by third party",
+        "content": "Parties to an arbitration agreement may agree that any reference thereunder shall be to an arbitrator or arbitrators appointed by a designated person."
+      },
+      {
+        "section": 5,
+        "title": "Authority of appointed arbitrator or umpire irrevocable except by leave of Court",
+        "content": "The authority of an appointed arbitrator or umpire shall not be revocable except with the leave of the Court unless stated otherwise."
+      },
+      {
+        "section": 6,
+        "title": "Arbitration agreement not to be discharged by death of party",
+        "content": "An arbitration agreement shall not be discharged by the death of any party and shall be enforceable by or against legal representatives."
+      },
+      {
+        "section": 7,
+        "title": "Provisions in case of insolvency",
+        "content": "Where an insolvent is a party to an arbitration agreement, the receiver may enforce it where applicable."
+      },
+      {
+        "section": 8,
+        "title": "Power of Court to appoint arbitrator or umpire",
+        "content": "The Court may appoint an arbitrator or umpire in certain cases, such as failure of the parties to concur on an appointment."
+      },
+      {
+        "section": 9,
+        "title": "Power to party to appoint new arbitrator or, in certain cases, a sole arbitrator",
+        "content": "A party may appoint a new arbitrator if the appointed one refuses to act, is incapable, or dies."
+      },
+      {
+        "section": 10,
+        "title": "Provisions as to appointment of three or more arbitrators",
+        "content": "In case of three arbitrators, the award of the majority shall prevail unless otherwise specified."
+      },
+      {
+        "section": 11,
+        "title": "Power to Court to remove arbitrators or umpire",
+        "content": "The Court may remove an arbitrator or umpire in certain circumstances, such as misconduct."
+      },
+      {
+        "section": 12,
+        "title": "Power of Court where arbitrator is removed or his authority revoked",
+        "content": "The Court may appoint replacements or terminate arbitration agreements where necessary."
+      },
+      {
+        "section": 13,
+        "title": "Powers of arbitrator",
+        "content": "Arbitrators may administer oaths, issue interrogatories, and correct clerical mistakes in awards."
+      },
+      {
+        "section": 14,
+        "title": "Award to be signed and filed",
+        "content": "The arbitrator shall sign and file the award in Court and notify the parties."
+      },
+      {
+        "section": 15,
+        "title": "Power of Court to modify award",
+        "content": "The Court may modify an award in case of clerical errors or issues that do not affect the decision."
+      },
+      {
+        "section": 16,
+        "title": "Power to remit award",
+        "content": "The Court may remit an award for reconsideration in cases of incompleteness or legal errors."
+      },
+      {
+        "section": 17,
+        "title": "Judgment in terms of award",
+        "content": "If no cause exists to set aside the award, the Court shall pronounce judgment in its terms."
+      },
+      {
+        "section": 18,
+        "title": "Power of Court to pass interim orders",
+        "content": "The Court may pass interim orders to prevent obstruction of execution."
+      },
+      {
+        "section": 19,
+        "title": "Power to supersede arbitration where award becomes void or is set aside",
+        "content": "The Court may order the arbitration agreement to cease if an award is void or set aside."
+      }
+    ]
+  }
+  
