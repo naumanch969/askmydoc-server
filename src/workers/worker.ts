@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { initializeVectorstoreWithDocuments } from "./helper.js";
+import { initMemoryVectorStoreFromPDF } from "../utils/chain.js";
 
 const worker = new Worker('file-upload-queue',
     async (job) => {
@@ -8,7 +8,7 @@ const worker = new Worker('file-upload-queue',
         const data = JSON.parse(job.data as string);
         const filepath = data.path;
 
-        await initializeVectorstoreWithDocuments(filepath);
+        await initMemoryVectorStoreFromPDF(filepath);
 
     },
     { concurrency: 1, connection: { host: 'localhost', port: 6379 } }

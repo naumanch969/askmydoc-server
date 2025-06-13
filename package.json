@@ -7,10 +7,11 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "nodemon --exec tsx -r dotenv/config src/api/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev-worker": "nodemon --exec tsx -r dotenv/config src/workers/worker.ts"
+    "dev": "nodemon --exec tsx -r dotenv/config src/api/index.ts",
+    "worker": "nodemon --exec tsx -r dotenv/config src/workers/worker.ts",
+    "redis": "redis-server --port 6379"
   },
   "dependencies": {
     "@google/generative-ai": "^0.22.0",
@@ -31,6 +32,7 @@
     "express": "^4.21.2",
     "express-validator": "^7.2.1",
     "helmet": "^8.0.0",
+    "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "langchain": "^0.3.28",
     "mongoose": "^7.6.3",

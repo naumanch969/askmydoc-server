@@ -15,16 +15,6 @@ const textSplitter = new CharacterTextSplitter({
     chunkOverlap: 0,
 });
 
-export const getVectorStore = async () => {
-
-    const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
-        url: "http://localhost:6333",
-        collectionName: "pdf-docs",
-    });
-
-    return vectorStore;
-}
-
 export const getTextSplitter = () => {
     return textSplitter;
 };
