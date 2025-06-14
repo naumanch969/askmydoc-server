@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import Document from '../models/document.js';
 import { logger } from '../utils/logger.js';
+import { DocumentWorker } from '../workers/documentWorker.js';
 import { processDocument } from '../queues/documentProcessor.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -9,53 +10,44 @@ import fs from 'fs/promises';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { pineconeIndex } from '../config/pinecone.js';
 
+// Initialize document worker
+const documentWorker = new DocumentWorker();
+
 export const uploadDocument = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        if (!req.file) {
+        const file = req.file;
+        const userId = req.user?.id;
+        const clerkId = req.user?.clerkId;
+
+        if (!file) {
             res.status(400).json({ error: 'No file uploaded' });
             return;
         }
-
-        const { originalname, mimetype, size, filename } = req.file;
-        const userId = req.user?.id;
-        const clerkId = req.user?.clerkId;
 
         if (!userId || !clerkId) {
             res.status(401).json({ error: 'User not authenticated' });
             return;
         }
 
-        const docId = uuidv4();
-        const namespace = `${clerkId}:${docId}`;
-        const filePath = path.join(process.env.UPLOAD_DIR || 'uploads', filename);
-
         const document = new Document({
             userId,
             clerkId,
-            filename,
-            originalName: originalname,
-            mimeType: mimetype,
-            size,
-            namespace,
-            path: filePath,
-            status: 'pending'
+            originalName: file.originalname,
+            path: file.path,
+            size: file.size,
+            mimeType: file.mimetype,
+            status: 'pending',
+            namespace: `${userId}::${file.originalname}`
         });
 
         await document.save();
 
-        // Queue document processing
-        await processDocument(document._id.toString());
+        // Add document processing job to queue
+        await documentWorker.addJob({ documentId: document._id });
 
-        res.status(201).json({
-            message: 'Document uploaded successfully',
-            document: {
-                id: document._id,
-                status: document.status,
-                namespace: document.namespace
-            }
-        });
+        res.status(201).json(document);
     } catch (error) {
-        logger.error('Document upload error:', error);
+        logger.error('Upload document error:', error);
         res.status(500).json({ error: 'Failed to upload document' });
     }
 };

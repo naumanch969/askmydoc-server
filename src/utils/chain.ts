@@ -4,9 +4,6 @@ import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { HttpResponseOutputParser } from "langchain/output_parsers";
 import { convertDocsToString } from "./index.js";
-import { RedisChatMessageHistory } from "@langchain/community/stores/message/redis";
-import { BaseChatMessageHistory } from "@langchain/core/chat_history";
-import { Redis } from "ioredis";
 import { getChatHistory } from "../config/redis.js";
 
 export const buildRetrievalChain = async (retriever: Runnable): Promise<Runnable> => {

@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon --exec tsx -r dotenv/config src/api/index.ts",
+    "dev": "nodemon --exec tsx -r dotenv/config src/app.ts",
     "worker": "nodemon --exec tsx -r dotenv/config src/workers/worker.ts",
     "redis": "redis-server --port 6379"
   },
