@@ -1,25 +1,50 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import uploadRoutes from "../routes/upload.js";
-import chatRoutes from "../routes/chat.js";
-import { createServer } from "http";
-
-dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { connectRedis } from '../config/redis.js';
+import routes from '../routes/index.js';
+import { connectDB } from '../config/database.js';
+import { logger } from '../utils/logger.js';
 
 const app = express();
-const httpServer = createServer(app);
-const PORT = process.env.NODE_SERVER_PORT || 4000;
 
 // Middleware
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(morgan('dev'));
 
-app.get('/', (req, res) => { res.send('Welcome to the API'); });
+// Routes
+app.use('/api', routes);
 
-app.use('/api/upload', uploadRoutes)
-app.use('/api/chat', chatRoutes)
-
-httpServer.listen(PORT, () => {
-    console.log(`Server running (HTTP + Socket) on port ${PORT}`);
+// Error handling
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
+
+// Start server
+const PORT = process.env.PORT || 3000;
+
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await connectDB();
+
+    // Connect to Redis
+    await connectRedis();
+
+    // Start Express server
+    app.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+export default app; 

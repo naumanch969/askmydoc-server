@@ -2,11 +2,12 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { RunnableSequence, RunnablePassthrough, RunnableWithMessageHistory, Runnable } from "@langchain/core/runnables";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { ChatMessageHistory } from "langchain/stores/message/in_memory";
 import { HttpResponseOutputParser } from "langchain/output_parsers";
 import { convertDocsToString } from "./index.js";
-import { getRedisMessageHistory } from "./messageHistory.js";
-
+import { RedisChatMessageHistory } from "@langchain/community/stores/message/redis";
+import { BaseChatMessageHistory } from "@langchain/core/chat_history";
+import { Redis } from "ioredis";
+import { getChatHistory } from "../config/redis.js";
 
 export const buildRetrievalChain = async (retriever: Runnable): Promise<Runnable> => {
 
@@ -92,7 +93,7 @@ export const wrapWithHistoryChain = (conversationalRetrievalChain: any) => {
 
     const finalRetrievalChain = new RunnableWithMessageHistory({
         runnable: conversationalRetrievalChain,
-        getMessageHistory: (sessionId: string) => getRedisMessageHistory(sessionId),
+        getMessageHistory: (sessionId: string) => getChatHistory(sessionId),
         inputMessagesKey: "question",
         historyMessagesKey: "history",
     }).pipe(httpResponseOutputParser);
