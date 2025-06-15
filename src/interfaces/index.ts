@@ -8,3 +8,9 @@ export interface HistoryMessage {
     //     sources?: { page: number; content: string; }[];
     // };
 }
+
+export interface ApiResponse<T> {
+    data: T;
+    message?: string;
+    status: number;
+}

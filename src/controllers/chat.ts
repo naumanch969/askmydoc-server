@@ -7,12 +7,8 @@ import { buildConversationChain, buildRetrievalChain, wrapWithHistoryChain, buil
 import { getRetriever } from '../utils/vectorStore.js';
 import { googleGenAi } from '../config/model.js';
 import { HistoryMessage } from '../interfaces/index.js';
+import { sendResponse, sendError } from '../utils/response.js';
 
-// Helper for error responses
-const handleError = (res: Response, error: unknown, message = 'Internal server error', status = 500) => {
-    logger.error(message, error);
-    res.status(status).json({ error: message });
-};
 
 // Send a message in a chat session
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -22,7 +18,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
         const userId = req.user?.id;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
@@ -30,13 +26,13 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
             .populate('documentId');
 
         if (!session) {
-            res.status(404).json({ error: 'Chat session not found' });
+            sendError(res, 'Chat session not found', 404);
             return;
         }
 
         const document = session.documentId as any;
         if (!document) {
-            res.status(404).json({ error: 'Document not found' });
+            sendError(res, 'Document not found', 404);
             return;
         }
 
@@ -89,9 +85,10 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
         history.push(userMessage, assistantMessage);
         await setRedisChatHistory(sessionId, history);
 
-        res.json({ message: assistantMessage, stream });
+        sendResponse(res, { message: assistantMessage, stream });
     } catch (error) {
-        handleError(res, error, 'Failed to process message');
+        logger.error('Failed to process message', error);
+        sendError(res, 'Failed to process message', 500);
     }
 };
 
@@ -102,18 +99,19 @@ export const getChatHistory = async (req: AuthRequest, res: Response): Promise<v
         const userId = req.user?.id;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
         const session = await ChatSession.findOne({ _id: sessionId, userId });
         if (!session) {
-            res.status(404).json({ error: 'Chat session not found' });
+            sendError(res, 'Chat session not found', 404);
             return;
         }
 
-        res.json(session.messages);
+        sendResponse(res, session.messages);
     } catch (error) {
-        handleError(res, error, 'Failed to fetch chat history');
+        logger.error('Failed to fetch chat history', error);
+        sendError(res, 'Failed to fetch chat history', 500);
     }
 };

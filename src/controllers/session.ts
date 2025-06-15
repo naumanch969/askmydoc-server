@@ -3,12 +3,8 @@ import { AuthRequest } from '../middleware/auth.js';
 import ChatSession from '../models/session.js';
 import Document from '../models/document.js';
 import { logger } from '../utils/logger.js';
+import { sendResponse, sendError } from '../utils/response.js';
 
-// Helper for error responses
-const handleError = (res: Response, error: unknown, message = 'Internal server error', status = 500) => {
-    logger.error(message, error);
-    res.status(status).json({ error: message });
-};
 
 // Create a new chat session
 export const createSession = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -18,13 +14,13 @@ export const createSession = async (req: AuthRequest, res: Response): Promise<vo
         const clerkId = req.user?.clerkId;
 
         if (!userId || !clerkId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
         const document = await Document.findOne({ _id: documentId, userId });
         if (!document) {
-            res.status(404).json({ error: 'Document not found' });
+            sendError(res, 'Document not found', 404);
             return;
         }
 
@@ -42,9 +38,10 @@ export const createSession = async (req: AuthRequest, res: Response): Promise<vo
         });
 
         await session.save();
-        res.status(201).json(session);
+        sendResponse(res, session, 'Chat session created successfully', 201);
     } catch (error) {
-        handleError(res, error, 'Failed to create chat session');
+        logger.error('Failed to create chat session', error);
+        sendError(res, 'Failed to create chat session', 500);
     }
 };
 
@@ -55,7 +52,7 @@ export const getSession = async (req: AuthRequest, res: Response): Promise<void>
         const userId = req.user?.id;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
@@ -63,13 +60,14 @@ export const getSession = async (req: AuthRequest, res: Response): Promise<void>
             .populate('documentId', 'originalName');
 
         if (!session) {
-            res.status(404).json({ error: 'Session not found' });
+            sendError(res, 'Session not found', 404);
             return;
         }
 
-        res.json(session);
+        sendResponse(res, session);
     } catch (error) {
-        handleError(res, error, 'Failed to fetch session');
+        logger.error('Failed to fetch session', error);
+        sendError(res, 'Failed to fetch session', 500);
     }
 };
 
@@ -78,7 +76,7 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
     try {
         const userId = req.user?.id;
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
@@ -86,9 +84,10 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
             .sort({ 'metadata.lastActivity': -1 })
             .populate('documentId', 'originalName');
 
-        res.json(sessions);
+        sendResponse(res, sessions);
     } catch (error) {
-        handleError(res, error, 'Failed to fetch sessions');
+        logger.error('Failed to fetch sessions', error);
+        sendError(res, 'Failed to fetch sessions', 500);
     }
 };
 
@@ -100,13 +99,13 @@ export const updateSession = async (req: AuthRequest, res: Response): Promise<vo
         const { title } = req.body;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
         const session = await ChatSession.findOneAndUpdate(
             { _id: sessionId, userId },
-            { 
+            {
                 title,
                 'metadata.lastActivity': new Date()
             },
@@ -114,13 +113,14 @@ export const updateSession = async (req: AuthRequest, res: Response): Promise<vo
         );
 
         if (!session) {
-            res.status(404).json({ error: 'Session not found' });
+            sendError(res, 'Session not found', 404);
             return;
         }
 
-        res.json(session);
+        sendResponse(res, session, 'Session updated successfully');
     } catch (error) {
-        handleError(res, error, 'Failed to update session');
+        logger.error('Failed to update session', error);
+        sendError(res, 'Failed to update session', 500);
     }
 };
 
@@ -131,18 +131,19 @@ export const deleteSession = async (req: AuthRequest, res: Response): Promise<vo
         const userId = req.user?.id;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
         const session = await ChatSession.findOneAndDelete({ _id: sessionId, userId });
         if (!session) {
-            res.status(404).json({ error: 'Session not found' });
+            sendError(res, 'Session not found', 404);
             return;
         }
 
-        res.json({ message: 'Session deleted successfully' });
+        sendResponse(res, null, 'Session deleted successfully');
     } catch (error) {
-        handleError(res, error, 'Failed to delete session');
+        logger.error('Failed to delete session', error);
+        sendError(res, 'Failed to delete session', 500);
     }
 };

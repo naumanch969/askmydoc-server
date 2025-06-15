@@ -15,17 +15,14 @@ export const authMiddleware = async (req: AuthRequest, res: any, next: NextFunct
             return res.status(401).json({ error: 'No session token provided' });
         }
 
-        const sessionId = req.headers['x-session-id'] as string;
-        if (!sessionId) {
-            return res.status(401).json({ error: 'No session ID provided' });
-        }
-
-        const session = await clerkClient.sessions.verifySession(sessionToken, sessionId);
-        if (!session) {
+        // Get the session claims from the token
+        const { sub: userId } = await clerkClient.verifyToken(sessionToken);
+        if (!userId) {
             return res.status(401).json({ error: 'Invalid session token' });
         }
 
-        const user = await clerkClient.users.getUser(session.userId);
+        // Get the user from the session
+        const user = await clerkClient.users.getUser(userId);
         if (!user) {
             return res.status(401).json({ error: 'User not found' });
         }

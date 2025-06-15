@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import type { Document as MongooseDocument } from 'mongoose';
+import { DocumentStatus } from '../enums/index.js';
 
 const documentSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -8,15 +9,16 @@ const documentSchema = new mongoose.Schema({
   originalName: { type: String, required: true },
   mimeType: { type: String, required: true },
   size: { type: Number, required: true },
-  namespace: { type: String, required: true }, // e.g., 'clerk_user_id:document_id'
+  namespace: { type: String, required: true }, // e.g., 'clerk_user_id:document_original_name'
   path: { type: String, required: true },
   status: {
     type: String,
-    enum: ['pending', 'processing', 'indexed', 'failed'],
-    default: 'pending'
+    enum: Object.values(DocumentStatus),
+    default: DocumentStatus.PENDING
   },
-  error: { type: String },
+  error: { type: String, default: null },
   pageCount: { type: Number },
+  chunkCount: { type: Number, default: 0 }, // Number of chunks created for this document while splitting
   processedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

@@ -9,6 +9,8 @@ import path from 'path';
 import fs from 'fs/promises';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { pineconeIndex } from '../config/pinecone.js';
+import { getNamespace } from '../utils/index.js';
+import { sendResponse, sendError } from '../utils/response.js';
 
 // Initialize document worker
 const documentWorker = new DocumentWorker();
@@ -20,35 +22,47 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
         const clerkId = req.user?.clerkId;
 
         if (!file) {
-            res.status(400).json({ error: 'No file uploaded' });
+            sendError(res, 'No file uploaded', 400);
             return;
         }
 
         if (!userId || !clerkId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
+        const namespace = getNamespace(userId, file.originalname);
+
+        // Check if document with same namespace already exists
+        const existingDocument = await Document.findOne({ namespace });
+        if (existingDocument) {
+            sendResponse(res, existingDocument, 'A document with this name already exists. Please use a different name or delete the existing document.', 409);
+            return;
+        }
+
+        console.log('file:', file);
         const document = new Document({
             userId,
             clerkId,
+            filename: file.filename,
             originalName: file.originalname,
-            path: file.path,
-            size: file.size,
             mimeType: file.mimetype,
+            size: file.size,
+            namespace,
+            path: file.path,
             status: 'pending',
-            namespace: `${userId}::${file.originalname}`
         });
 
         await document.save();
+        console.log('document:', document);
 
         // Add document processing job to queue
         await documentWorker.addJob({ documentId: document._id });
 
-        res.status(201).json(document);
+        sendResponse(res, document, 'Document uploaded successfully', 201);
     } catch (error) {
         logger.error('Upload document error:', error);
-        res.status(500).json({ error: 'Failed to upload document' });
+        sendError(res, 'Failed to upload document');
     }
 };
 
@@ -56,7 +70,7 @@ export const getDocuments = async (req: AuthRequest, res: Response): Promise<voi
     try {
         const userId = req.user?.id;
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
@@ -64,10 +78,10 @@ export const getDocuments = async (req: AuthRequest, res: Response): Promise<voi
             .sort({ createdAt: -1 })
             .select('-path');
 
-        res.json(documents);
+        sendResponse(res, documents);
     } catch (error) {
         logger.error('Get documents error:', error);
-        res.status(500).json({ error: 'Failed to fetch documents' });
+        sendError(res, 'Failed to fetch documents');
     }
 };
 
@@ -77,7 +91,7 @@ export const getDocument = async (req: AuthRequest, res: Response): Promise<void
         const userId = req.user?.id;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
@@ -85,14 +99,14 @@ export const getDocument = async (req: AuthRequest, res: Response): Promise<void
             .select('-path');
 
         if (!document) {
-            res.status(404).json({ error: 'Document not found' });
+            sendError(res, 'Document not found', 404);
             return;
         }
 
-        res.json(document);
+        sendResponse(res, document);
     } catch (error) {
         logger.error('Get document error:', error);
-        res.status(500).json({ error: 'Failed to fetch document' });
+        sendError(res, 'Failed to fetch document');
     }
 };
 
@@ -102,13 +116,13 @@ export const deleteDocument = async (req: AuthRequest, res: Response): Promise<v
         const userId = req.user?.id;
 
         if (!userId) {
-            res.status(401).json({ error: 'User not authenticated' });
+            sendError(res, 'User not authenticated', 401);
             return;
         }
 
         const document = await Document.findOne({ _id: id, userId });
         if (!document) {
-            res.status(404).json({ error: 'Document not found' });
+            sendError(res, 'Document not found', 404);
             return;
         }
 
@@ -132,9 +146,9 @@ export const deleteDocument = async (req: AuthRequest, res: Response): Promise<v
         // Delete document from database
         await document.deleteOne();
 
-        res.json({ message: 'Document deleted successfully' });
+        sendResponse(res, null, 'Document deleted successfully');
     } catch (error) {
         logger.error('Delete document error:', error);
-        res.status(500).json({ error: 'Failed to delete document' });
+        sendError(res, 'Failed to delete document');
     }
 }; 

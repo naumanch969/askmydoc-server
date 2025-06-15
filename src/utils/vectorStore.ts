@@ -24,7 +24,10 @@ export const loadAndSplitPDF = async (document: DocumentInstance, chunkSize = 51
     document.pageCount = docs.length;
 
     const splitter = new RecursiveCharacterTextSplitter({ chunkSize, chunkOverlap });
-    return splitter.splitDocuments(docs);
+    const splitDocs = await splitter.splitDocuments(docs);
+    document.chunkCount = splitDocs.length;
+
+    return splitDocs;
 };
 
 export const initVectorStoreFromPDF = async (document: DocumentInstance): Promise<void> => {

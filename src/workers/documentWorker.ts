@@ -2,6 +2,7 @@ import { BaseWorker } from './baseWorker.js';
 import { logger } from '../utils/logger.js';
 import { createEmbeddings, initVectorStoreFromPDF } from '../utils/vectorStore.js';
 import Document from '../models/document.js';
+import { DocumentStatus } from '../enums/index.js';
 
 export class DocumentWorker extends BaseWorker {
   constructor() {
@@ -18,12 +19,12 @@ export class DocumentWorker extends BaseWorker {
         throw new Error(`Document ${documentId} not found`);
       }
 
-      document.status = 'processing';
+      document.status = DocumentStatus.PROCESSING;
       await document.save();
 
       await initVectorStoreFromPDF(document);
 
-      document.status = 'indexed';
+      document.status = DocumentStatus.INDEXED;
       document.processedAt = new Date();
       await document.save();
 
