@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import type { Document as MongooseDocument } from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
   role: {
@@ -48,5 +49,12 @@ chatSessionSchema.index({ clerkId: 1 });
 chatSessionSchema.index({ status: 1 });
 chatSessionSchema.index({ createdAt: -1 });
 chatSessionSchema.index({ 'metadata.lastActivity': -1 });
+
+
+export type ChatSessionType = mongoose.InferSchemaType<typeof chatSessionSchema>;
+export type ChatSessionInstance = MongooseDocument & DocumentType;
+
+export type MessageType = mongoose.InferSchemaType<typeof messageSchema>;
+export type MessageInstance = MongooseDocument & MessageType;
 
 export default ChatSession;

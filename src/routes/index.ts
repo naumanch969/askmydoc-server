@@ -1,43 +1,46 @@
-import express from 'express';
-import multer from 'multer';
+import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { uploadDocument, getDocuments, getDocument, deleteDocument } from '../controllers/document.js';
+import { createSession, getSessions, getSession, updateSession, deleteSession } from '../controllers/session.js';
+import { sendMessage, getChatHistory } from '../controllers/chat.js';
+import { deleteDocumentValidation, getDocumentValidation } from '../validations/document.js';
+import { createSessionValidation, deleteSessionValidation, getSessionValidation, updateSessionValidation } from '../validations/session.js';
+import { getChatHistoryValidation, sendMessageValidation } from '../validations/chat.js';
+import multer from 'multer';
 import { storage } from '../utils/index.js';
-import { deleteDocument, getDocument, getDocuments, uploadDocument } from '../controllers/document.js';
-import { createSession, deleteSession, getSession, getSessions, updateSession } from '../controllers/session.js';
-import { getChatHistory } from '../config/redis.js';
-import { sendMessage } from '../controllers/chat.js';
 
-const router = express.Router();
+const router = Router();
 
 const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed'));
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed'));
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
     }
-  },
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  }
 });
 
 // Document routes
 router.post('/documents', authMiddleware, upload.single('file'), uploadDocument);
 router.get('/documents', authMiddleware, getDocuments);
-router.get('/documents/:id', authMiddleware, getDocument);
-router.delete('/documents/:id', authMiddleware, deleteDocument);
+router.get('/documents/:id', authMiddleware, getDocumentValidation, validate, getDocument);
+router.delete('/documents/:id', authMiddleware, deleteDocumentValidation, validate, deleteDocument);
 
 // Session routes
-router.post('/sessions', authMiddleware, createSession);
+router.post('/sessions', authMiddleware, createSessionValidation, validate, createSession);
 router.get('/sessions', authMiddleware, getSessions);
-router.get('/sessions/:sessionId', authMiddleware, getSession);
-router.patch('/sessions/:sessionId', authMiddleware, updateSession);
-router.delete('/sessions/:sessionId', authMiddleware, deleteSession);
+router.get('/sessions/:sessionId', authMiddleware, getSessionValidation, validate, getSession);
+router.put('/sessions/:sessionId', authMiddleware, updateSessionValidation, validate, updateSession);
+router.delete('/sessions/:sessionId', authMiddleware, deleteSessionValidation, validate, deleteSession);
 
 // Chat routes
-router.post('/sessions/:sessionId/messages', authMiddleware, sendMessage);
-router.get('/sessions/:sessionId/messages', authMiddleware, getChatHistory);
+router.post('/sessions/:sessionId/messages', authMiddleware, sendMessageValidation, validate, sendMessage);
+router.get('/sessions/:sessionId/messages', authMiddleware, getChatHistoryValidation, validate, getChatHistory);
 
 export default router; 

@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { connectRedis } from './config/redis.js';
 import redisClient from './config/redis.js';
 import { initializeWorkers, shutdownWorkers } from './workers/index.js';
 import router from './routes/index.js';
@@ -34,11 +33,10 @@ async function startServer() {
         // Connect to MongoDB
         await connectDB();
 
-        // Connect to Redis
-        await connectRedis();
-
         // Initialize workers
         await initializeWorkers();
+
+        // Redis automatically connected when we make ioredis instance.
 
         // Start server
         app.listen(port, () => {

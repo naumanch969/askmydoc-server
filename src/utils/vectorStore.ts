@@ -6,6 +6,7 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import pinecone, { pineconeIndex } from "../config/pinecone.js";
 import { DocumentInstance } from "../models/document.js";
+import { logger } from "./logger.js";
 
 export const createEmbeddings = () => {
     return new GoogleGenerativeAIEmbeddings({
@@ -15,9 +16,7 @@ export const createEmbeddings = () => {
 };
 
 export const loadAndSplitPDF = async (document: DocumentInstance, chunkSize = 512, chunkOverlap = 64): Promise<LC_Document[]> => {
-
     const filepath = document.path;
-
     const loader = new PDFLoader(filepath);
     const docs = await loader.load();
 
@@ -32,7 +31,6 @@ export const loadAndSplitPDF = async (document: DocumentInstance, chunkSize = 51
 
 export const initVectorStoreFromPDF = async (document: DocumentInstance): Promise<void> => {
     try {
-
         const splitDocs = await loadAndSplitPDF(document);
         const embeddings = createEmbeddings();
 
@@ -41,7 +39,7 @@ export const initVectorStoreFromPDF = async (document: DocumentInstance): Promis
             namespace: document.namespace,
         });
     } catch (error) {
-        console.error("Error initializing vector store from PDF:", error);
+        logger.error("Error initializing vector store from PDF:", error);
         throw new Error("Failed to initialize vector store from PDF");
     }
 };
@@ -64,5 +62,32 @@ export const getRetriever = async (indexName: string, namespace: string) => {
         namespace,
     });
 
-    return store.asRetriever();
+    // Create a retriever with proper error handling
+    const retriever = store.asRetriever({
+        searchKwargs: {
+            fetchK: 4, // Number of documents to retrieve
+        },
+    });
+
+    // // Wrap the retriever to handle errors and validate input
+    // return {
+    //     invoke: async (input: string) => {
+    //         if (!input || typeof input !== 'string') {
+    //             logger.error('Invalid input to retriever:', input);
+    //             throw new Error('Invalid query input');
+    //         }
+
+    //         try {
+    //             logger.info(`Retrieving documents for query: ${input}`);
+    //             const results = await retriever.invoke(input);
+    //             logger.info(`Retrieved ${results.length} documents`);
+    //             return results;
+    //         } catch (error) {
+    //             logger.error('Error in retriever:', error);
+    //             throw new Error('Failed to retrieve documents');
+    //         }
+    //     }
+    // };
+
+    return retriever;
 };

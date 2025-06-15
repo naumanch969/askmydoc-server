@@ -4,14 +4,41 @@ import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { HttpResponseOutputParser } from "langchain/output_parsers";
 import { convertDocsToString } from "./index.js";
-import { getChatHistory } from "../config/redis.js";
+import { getRedisMessageHistory } from "./messageHistory.js";
+import { logger } from './logger.js';
+import { Document } from "@langchain/core/documents";
 
 export const buildRetrievalChain = async (retriever: Runnable): Promise<Runnable> => {
-
     const contextRetrievalChain = RunnableSequence.from([
-        (input: { question: string }) => input.question,
+        (input: { question: string }) => {
+            if (!input.question) {
+                logger.error('Empty question in retrieval chain');
+                throw new Error('Question cannot be empty');
+            }
+            return input.question;
+        },
         retriever,
-        convertDocsToString
+        (docs: unknown) => {
+            logger.info('Retrieved documents:', { docs });
+            
+            // Handle case where docs is not an array
+            if (!Array.isArray(docs)) {
+                logger.warn('Retriever did not return an array of documents');
+                return 'No relevant information found.';
+            }
+
+            // Ensure all items are Document instances
+            const validDocs = docs.filter((doc): doc is Document => 
+                doc instanceof Document && typeof doc.pageContent === 'string'
+            );
+
+            if (validDocs.length === 0) {
+                logger.warn('No valid documents found after filtering');
+                return 'No relevant information found.';
+            }
+
+            return convertDocsToString(validDocs);
+        }
     ]);
 
     return contextRetrievalChain;
@@ -69,7 +96,6 @@ export const buildAnswerPrompt = () => {
 }
 
 export const buildConversationChain = (model: ChatGoogleGenerativeAI, rephraseQuestionChain: Runnable, documentRetrievalChain: Runnable, answerPrompt: ChatPromptTemplate) => {
-
     const conversationalRetrievalChain = RunnableSequence.from([
         RunnablePassthrough.assign({
             standalone_question: rephraseQuestionChain,
@@ -78,22 +104,24 @@ export const buildConversationChain = (model: ChatGoogleGenerativeAI, rephraseQu
             context: documentRetrievalChain,
         }),
         answerPrompt,
-        model
+        model,
+        new StringOutputParser() // Add string parser here to ensure we get a string output
     ]);
 
     return conversationalRetrievalChain;
 }
 
 export const wrapWithHistoryChain = (conversationalRetrievalChain: any) => {
-
-    const httpResponseOutputParser = new HttpResponseOutputParser({ contentType: "text/plain" });
-
     const finalRetrievalChain = new RunnableWithMessageHistory({
         runnable: conversationalRetrievalChain,
-        getMessageHistory: (sessionId: string) => getChatHistory(sessionId),
+        getMessageHistory: (sessionId: string) => {
+            logger.info(`Getting message history for session ${sessionId}`);
+            return getRedisMessageHistory(sessionId);
+        },
         inputMessagesKey: "question",
         historyMessagesKey: "history",
-    }).pipe(httpResponseOutputParser);
+    });
 
     return finalRetrievalChain;
 }
+

@@ -1,11 +1,18 @@
-import { createClient } from 'redis';
+import { Redis } from 'ioredis';
 import { logger } from '../utils/logger.js';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Redis client for general operations
-const redisClient = createClient({
-    url: REDIS_URL
+const redisClient = new Redis(REDIS_URL, {
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times: number) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+    },
+    enableReadyCheck: true,
+    connectTimeout: 10000,
+    disconnectTimeout: 2000,
 });
 
 // Redis connection for BullMQ
@@ -15,7 +22,7 @@ export const redisConnection = {
     password: new URL(REDIS_URL).password || undefined
 };
 
-redisClient.on('error', (err) => {
+redisClient.on('error', (err: Error) => {
     logger.error('Redis Client Error:', err);
 });
 
@@ -23,24 +30,13 @@ redisClient.on('connect', () => {
     logger.info('Redis Client Connected');
 });
 
-export const connectRedis = async () => {
-    try {
-        await redisClient.connect();
-        logger.info('Connected to Redis');
-    } catch (error) {
-        logger.error('Redis connection error:', error);
-        process.exit(1);
-    }
-};
+redisClient.on('ready', () => {
+    logger.info('Redis Client Ready');
+});
 
-export const disconnectRedis = async () => {
-    try {
-        await redisClient.disconnect();
-        logger.info('Redis disconnected successfully');
-    } catch (error) {
-        logger.error('Redis disconnection error:', error);
-    }
-};
+redisClient.on('reconnecting', () => {
+    logger.info('Redis Client Reconnecting');
+});
 
 // Helper functions for chat history
 export const setChatHistory = async (sessionId: string, messages: any[]) => {
