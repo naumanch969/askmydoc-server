@@ -70,6 +70,13 @@ export class SocketService {
                         return;
                     }
 
+                    // Emit thinking state
+                    this.io.to(sessionId).emit('ai_state', {
+                        state: 'thinking',
+                        message: 'Analyzing your question...',
+                        timestamp: new Date().toISOString()
+                    });
+
                     logger.info('Building retrieval chain', { sessionId, documentId: document._id, namespace: document.namespace });
 
                     // Get retriever for the document's namespace
@@ -92,17 +99,50 @@ export class SocketService {
                     // Create the chain with the message history
                     const finalRetrievalChain = wrapWithHistoryChain(conversationalRetrievalChain);
 
+                    // Emit generating state
+                    this.io.to(sessionId).emit('ai_state', {
+                        state: 'generating',
+                        message: 'Generating response...',
+                        timestamp: new Date().toISOString()
+                    });
+
                     logger.info('Generating response', { sessionId });
 
-                    // Generate response
-                    const stream = await finalRetrievalChain.invoke(
+                    // Generate response with streaming
+                    const stream = await finalRetrievalChain.stream(
                         { question: message, sessionId },
                         { configurable: { sessionId } }
                     );
 
+                    // Create a temporary message ID for streaming
+                    const tempMessageId = Date.now().toString();
+
+                    // Initialize the streaming message
+                    this.io.to(sessionId).emit('stream_start', {
+                        messageId: tempMessageId,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    let fullResponse = '';
+                    for await (const chunk of stream) {
+                        fullResponse += chunk;
+                        // Emit each chunk to the client
+                        this.io.to(sessionId).emit('stream_chunk', {
+                            messageId: tempMessageId,
+                            content: chunk,
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+
+                    // Emit stream end
+                    this.io.to(sessionId).emit('stream_end', {
+                        messageId: tempMessageId,
+                        timestamp: new Date().toISOString()
+                    });
+
                     logger.info('Response generated successfully', {
                         sessionId,
-                        responseLength: String(stream).length
+                        responseLength: fullResponse.length
                     });
 
                     // Save message and response
@@ -114,7 +154,7 @@ export class SocketService {
 
                     const assistantMessage = {
                         role: 'assistant',
-                        content: String(stream),
+                        content: fullResponse,
                         createdAt: new Date(),
                     };
 
@@ -134,15 +174,9 @@ export class SocketService {
 
                     // Update Redis cache with LangChain message format
                     await messageHistory.addMessage(new HumanMessage(message));
-                    await messageHistory.addMessage(new AIMessage(String(stream)));
+                    await messageHistory.addMessage(new AIMessage(fullResponse));
 
                     logger.info('Updated message history in Redis', { sessionId });
-
-                    // Emit the response back to the specific session room
-                    this.io.to(sessionId).emit('receive_message', {
-                        message: assistantMessage.content,
-                        timestamp: new Date().toISOString()
-                    });
 
                 } catch (error) {
                     logger.error('Failed to process message', {
