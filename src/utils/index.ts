@@ -36,6 +36,7 @@ export const convertDocsToString = (documents: Document[]): string => {
 };
 
 export const getNamespace = (userId: string, filename: string) => {
-    const namespace = `${userId}::${filename}`;
+    // TODO: REMOVE DATE
+    const namespace = `${userId}::${filename}::${new Date().toISOString()}`;
     return namespace.replace(/[^a-zA-Z0-9_]/g, '_'); // Sanitize namespace
 }

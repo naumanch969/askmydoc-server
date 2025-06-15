@@ -21,10 +21,10 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
         const userId = req.user?.id;
         const clerkId = req.user?.clerkId;
 
-        logger.info('Processing document upload', { 
-            userId, 
+        logger.info('Processing document upload', {
+            userId,
             filename: file?.originalname,
-            size: file?.size 
+            size: file?.size
         });
 
         if (!file) {
@@ -45,16 +45,16 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
         // Check if document with same namespace already exists
         const existingDocument = await Document.findOne({ namespace });
         if (existingDocument) {
-            logger.warn('Document with same namespace already exists', { 
-                namespace, 
-                existingDocumentId: existingDocument._id 
+            logger.warn('Document with same namespace already exists', {
+                namespace,
+                existingDocumentId: existingDocument._id
             });
             sendResponse(res, existingDocument, 'A document with this name already exists. Please use a different name or delete the existing document.', 409);
             return;
         }
 
         const document = new Document({
-            userId,
+            user: userId,
             clerkId,
             filename: file.filename,
             originalName: file.originalname,
@@ -66,10 +66,10 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
         });
 
         await document.save();
-        logger.info('Document saved to database', { 
+        logger.info('Document saved to database', {
             documentId: document._id,
             namespace,
-            status: document.status 
+            status: document.status
         });
 
         // Add document processing job to queue
@@ -78,10 +78,10 @@ export const uploadDocument = async (req: AuthRequest, res: Response): Promise<v
 
         sendResponse(res, document, 'Document uploaded successfully', 201);
     } catch (error) {
-        logger.error('Upload document error:', { 
-            error, 
+        logger.error('Upload document error:', {
+            error,
             userId: req.user?.id,
-            filename: req.file?.originalname 
+            filename: req.file?.originalname
         });
         sendError(res, 'Failed to upload document');
     }
@@ -103,16 +103,16 @@ export const getDocuments = async (req: AuthRequest, res: Response): Promise<voi
             .sort({ createdAt: -1 })
             .select('-path');
 
-        logger.info('Successfully retrieved documents', { 
-            userId, 
-            documentCount: documents.length 
+        logger.info('Successfully retrieved documents', {
+            userId,
+            documentCount: documents.length
         });
 
-        sendResponse(res, documents);
+        sendResponse(res, documents, "Documents fetched successfully", 200);
     } catch (error) {
-        logger.error('Get documents error:', { 
-            error, 
-            userId: req.user?.id 
+        logger.error('Get documents error:', {
+            error,
+            userId: req.user?.id
         });
         sendError(res, 'Failed to fetch documents');
     }
@@ -140,18 +140,18 @@ export const getDocument = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        logger.info('Successfully retrieved document', { 
+        logger.info('Successfully retrieved document', {
             documentId: id,
             namespace: document.namespace,
-            status: document.status 
+            status: document.status
         });
 
-        sendResponse(res, document);
+        sendResponse(res, document, "Document fetched successfully", 200);
     } catch (error) {
-        logger.error('Get document error:', { 
-            error, 
+        logger.error('Get document error:', {
+            error,
             documentId: req.params.id,
-            userId: req.user?.id 
+            userId: req.user?.id
         });
         sendError(res, 'Failed to fetch document');
     }
@@ -180,15 +180,15 @@ export const deleteDocument = async (req: AuthRequest, res: Response): Promise<v
         // Delete file from storage
         try {
             await fs.unlink(document.path);
-            logger.info('File deleted from storage', { 
+            logger.info('File deleted from storage', {
                 documentId: id,
-                path: document.path 
+                path: document.path
             });
         } catch (error) {
-            logger.error('File deletion error:', { 
-                error, 
+            logger.error('File deletion error:', {
+                error,
                 documentId: id,
-                path: document.path 
+                path: document.path
             });
         }
 
@@ -197,15 +197,15 @@ export const deleteDocument = async (req: AuthRequest, res: Response): Promise<v
             await pineconeIndex.deleteMany({
                 namespace: document.namespace
             });
-            logger.info('Deleted vectors from Pinecone', { 
+            logger.info('Deleted vectors from Pinecone', {
                 documentId: id,
-                namespace: document.namespace 
+                namespace: document.namespace
             });
         } catch (error) {
-            logger.error('Pinecone deletion error:', { 
-                error, 
+            logger.error('Pinecone deletion error:', {
+                error,
                 documentId: id,
-                namespace: document.namespace 
+                namespace: document.namespace
             });
         }
 
@@ -215,10 +215,10 @@ export const deleteDocument = async (req: AuthRequest, res: Response): Promise<v
 
         sendResponse(res, null, 'Document deleted successfully');
     } catch (error) {
-        logger.error('Delete document error:', { 
-            error, 
+        logger.error('Delete document error:', {
+            error,
             documentId: req.params.id,
-            userId: req.user?.id 
+            userId: req.user?.id
         });
         sendError(res, 'Failed to delete document');
     }

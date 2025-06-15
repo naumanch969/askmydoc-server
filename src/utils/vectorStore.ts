@@ -8,7 +8,7 @@ import pinecone, { pineconeIndex } from "../config/pinecone.js";
 import { DocumentInstance } from "../models/document.js";
 import { logger } from "./logger.js";
 
-export const createEmbeddings = () => {
+export const getEmbeddingsModel = () => {
     return new GoogleGenerativeAIEmbeddings({
         model: "text-embedding-004",
         taskType: TaskType.RETRIEVAL_DOCUMENT,
@@ -32,7 +32,7 @@ export const loadAndSplitPDF = async (document: DocumentInstance, chunkSize = 51
 export const initVectorStoreFromPDF = async (document: DocumentInstance): Promise<void> => {
     try {
         const splitDocs = await loadAndSplitPDF(document);
-        const embeddings = createEmbeddings();
+        const embeddings = getEmbeddingsModel();
 
         await PineconeStore.fromDocuments(splitDocs, embeddings, {
             pineconeIndex,
@@ -45,7 +45,7 @@ export const initVectorStoreFromPDF = async (document: DocumentInstance): Promis
 };
 
 export const getVectorStore = async (document: DocumentInstance): Promise<PineconeStore> => {
-    const embeddings = createEmbeddings();
+    const embeddings = getEmbeddingsModel();
 
     return await PineconeStore.fromExistingIndex(embeddings, {
         pineconeIndex,
@@ -54,7 +54,7 @@ export const getVectorStore = async (document: DocumentInstance): Promise<Pineco
 };
 
 export const getRetriever = async (indexName: string, namespace: string) => {
-    const embeddings = createEmbeddings();
+    const embeddings = getEmbeddingsModel();
     const index = pinecone.Index(indexName);
 
     const store = await PineconeStore.fromExistingIndex(embeddings, {

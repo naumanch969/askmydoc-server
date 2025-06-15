@@ -14,7 +14,7 @@ const port = process.env.PORT || 4000;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: ["http://localhost:3000", "http://localhost:3001"], credentials: true }));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -52,7 +52,7 @@ async function startServer() {
 async function shutdown() {
     try {
         logger.info('Shutting down server...');
-        
+
         // Stop workers
         await shutdownWorkers();
         logger.info('Workers stopped');

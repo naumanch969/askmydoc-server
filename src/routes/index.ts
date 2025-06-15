@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { uploadDocument, getDocuments, getDocument, deleteDocument } from '../controllers/document.js';
-import { createSession, getSessions, getSession, updateSession, deleteSession } from '../controllers/session.js';
+import { createSession, getSessions, getSession, updateSession, deleteSession, pinSession } from '../controllers/session.js';
 import { sendMessage, getChatHistory } from '../controllers/chat.js';
 import { deleteDocumentValidation, getDocumentValidation } from '../validations/document.js';
 import { createSessionValidation, deleteSessionValidation, getSessionValidation, updateSessionValidation } from '../validations/session.js';
@@ -37,6 +37,8 @@ router.post('/sessions', authMiddleware, createSessionValidation, validate, crea
 router.get('/sessions', authMiddleware, getSessions);
 router.get('/sessions/:sessionId', authMiddleware, getSessionValidation, validate, getSession);
 router.put('/sessions/:sessionId', authMiddleware, updateSessionValidation, validate, updateSession);
+router.put('/sessions/:sessionId/pin', authMiddleware, pinSession);
+
 router.delete('/sessions/:sessionId', authMiddleware, deleteSessionValidation, validate, deleteSession);
 
 // Chat routes

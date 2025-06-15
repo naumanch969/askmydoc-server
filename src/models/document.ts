@@ -3,7 +3,7 @@ import type { Document as MongooseDocument } from 'mongoose';
 import { DocumentStatus } from '../enums/index.js';
 
 const documentSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clerkId: { type: String, required: true },
   filename: { type: String, required: true },
   originalName: { type: String, required: true },

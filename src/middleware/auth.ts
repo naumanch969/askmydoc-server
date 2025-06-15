@@ -10,7 +10,7 @@ export interface AuthRequest extends Request {
 export const authMiddleware = async (req: AuthRequest, res: any, next: NextFunction) => {
     try {
         const sessionToken = req.headers.authorization?.split(' ')[1];
-        
+
         if (!sessionToken) {
             return res.status(401).json({ error: 'No session token provided' });
         }

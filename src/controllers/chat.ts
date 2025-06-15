@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import ChatSession, { MessageType } from '../models/session.js';
+import Session from '../models/session.js';
 import { logger } from '../utils/logger.js';
 import { getRedisMessageHistory } from '../utils/messageHistory.js';
 import { buildConversationChain, buildRetrievalChain, wrapWithHistoryChain, buildRephraseQuestionChain, buildAnswerPrompt } from '../utils/chain.js';
@@ -8,6 +8,7 @@ import { getRetriever } from '../utils/vectorStore.js';
 import { googleGenAi } from '../config/model.js';
 import { sendResponse, sendError } from '../utils/response.js';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { MessageType } from '../models/message.js';
 
 // Send a message in a chat session
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -24,8 +25,8 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        const session = await ChatSession.findOne({ _id: sessionId, userId })
-            .populate('documentId');
+        const session = await Session.findOne({ _id: sessionId, user })
+            .populate('document');
 
         if (!session) {
             logger.warn('Chat session not found', { sessionId, userId });
@@ -33,7 +34,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        const document = session.documentId as any;
+        const document = session.document as any;
         if (!document) {
             logger.warn('Document not found for session', { sessionId, userId });
             sendError(res, 'Document not found', 404);
@@ -138,19 +139,16 @@ export const getChatHistory = async (req: AuthRequest, res: Response): Promise<v
             return;
         }
 
-        const session = await ChatSession.findOne({ _id: sessionId, userId });
+        const session = await Session.findOne({ _id: sessionId, user: userId });
         if (!session) {
             logger.warn('Chat session not found for history fetch', { sessionId, userId });
             sendError(res, 'Chat session not found', 404);
             return;
         }
 
-        logger.info('Successfully retrieved chat history', {
-            sessionId,
-            messageCount: session.messages.length
-        });
+        logger.info('Successfully retrieved chat history', { sessionId, messageCount: session.messages.length });
 
-        sendResponse(res, session.messages);
+        sendResponse(res, session.messages, "Chat history fetched successfully", 200);
     } catch (error) {
         logger.error('Failed to fetch chat history', {
             error,

@@ -1,30 +1,14 @@
 import mongoose from 'mongoose';
 import type { Document as MongooseDocument } from 'mongoose';
+import { messageSchema } from './message.js';
 
-const messageSchema = new mongoose.Schema({
-  role: {
-    type: String,
-    enum: ['user', 'assistant'],
-    required: true
-  },
-  content: { type: String, required: true },
-  metadata: {
-    tokens: { type: Number },
-    processingTime: { type: Number },
-    sources: [{
-      page: { type: Number },
-      content: { type: String }
-    }]
-  },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const chatSessionSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+const sessionSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clerkId: { type: String, required: true },
-  documentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Document', required: true },
+  document: { type: mongoose.Schema.Types.ObjectId, ref: 'Document', required: true },
   title: { type: String },
   messages: [messageSchema],
+  isPinned: { type: Boolean, default: false },
   status: { type: String, enum: ['active', 'archived'], default: 'active' },
   metadata: {
     totalTokens: { type: Number, default: 0 },
@@ -35,26 +19,23 @@ const chatSessionSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt timestamp before saving
-chatSessionSchema.pre('save', function (next) {
+sessionSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   this.metadata!.lastActivity = new Date();
   next();
 });
 
-const ChatSession = mongoose.model('ChatSession', chatSessionSchema);
+const Session = mongoose.model('Session', sessionSchema);
 
 // Indexes
-chatSessionSchema.index({ userId: 1, documentId: 1 });
-chatSessionSchema.index({ clerkId: 1 });
-chatSessionSchema.index({ status: 1 });
-chatSessionSchema.index({ createdAt: -1 });
-chatSessionSchema.index({ 'metadata.lastActivity': -1 });
+sessionSchema.index({ user: 1, document: 1 });
+sessionSchema.index({ clerkId: 1 });
+sessionSchema.index({ status: 1 });
+sessionSchema.index({ createdAt: -1 });
+sessionSchema.index({ 'metadata.lastActivity': -1 });
 
 
-export type ChatSessionType = mongoose.InferSchemaType<typeof chatSessionSchema>;
-export type ChatSessionInstance = MongooseDocument & DocumentType;
+export type SessionType = mongoose.InferSchemaType<typeof sessionSchema>;
+export type SessionInstance = MongooseDocument & DocumentType;
 
-export type MessageType = mongoose.InferSchemaType<typeof messageSchema>;
-export type MessageInstance = MongooseDocument & MessageType;
-
-export default ChatSession;
+export default Session;
