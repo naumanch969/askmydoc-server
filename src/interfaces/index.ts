@@ -4,3 +4,9 @@ export interface ApiResponse<T> {
     status: number;
     success: boolean;
 }
+
+export interface SocketMessage {
+    sessionId: string;
+    message: string;
+    clerkId: string;
+}

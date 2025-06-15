@@ -94,7 +94,6 @@ export const getSession = async (req: AuthRequest, res: Response): Promise<void>
 export const getSessions = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
-        console.log('userId', userId)
         logger.info('Fetching all sessions for user', { userId });
 
         if (!userId) {
@@ -103,11 +102,8 @@ export const getSessions = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        const sessions = await Session.find({ user: userId })
-            .sort({ 'metadata.lastActivity': -1 })
-            .populate('document', 'originalName');
+        const sessions = await Session.find({ user: userId }).sort({ 'metadata.lastActivity': -1 }).populate('document', 'originalName');
 
-        console.log('session', sessions)
         logger.info('Successfully retrieved user sessions', {
             userId,
             sessionCount: sessions.length
@@ -139,7 +135,7 @@ export const updateSession = async (req: AuthRequest, res: Response): Promise<vo
             { _id: sessionId, user: userId },
             { title, 'metadata.lastActivity': new Date() },
             { new: true }
-        );
+        ).populate('document', 'originalName');
 
         if (!session) {
             logger.warn('Session not found for update', { sessionId, userId });
@@ -174,7 +170,7 @@ export const pinSession = async (req: AuthRequest, res: Response): Promise<void>
             return;
         }
 
-        const session = await Session.findOne({ _id: sessionId, user: userId });
+        const session = await Session.findOne({ _id: sessionId, user: userId }).populate('document', 'originalName');
         if (!session) {
             sendError(res, 'Session not found', 404);
             return;
@@ -184,7 +180,7 @@ export const pinSession = async (req: AuthRequest, res: Response): Promise<void>
         session.isPinned = newPinState;
         session.metadata!.lastActivity = new Date();
         await session.save();
-        console.log('session', session)
+
         sendResponse(res, session, newPinState ? 'Session pinned' : 'Session unpinned');
     } catch (error) {
         logger.error('Failed to toggle pin state', { error });
@@ -207,14 +203,17 @@ export const deleteSession = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
-        const session = await Session.findOneAndDelete({ _id: sessionId, user: userId }).populate('document',);
+        const session = await Session.findOne({ _id: sessionId, user: userId }).populate('document', 'originalName');
+
         if (!session) {
             logger.warn('Session not found for deletion', { sessionId, userId });
             sendError(res, 'Session not found', 404);
             return;
         }
 
-        logger.info('Successfully deleted session', { sessionId, document: session.document?.originalName, messageCount: session.messages.length });
+        await session.deleteOne();
+
+        logger.info('Successfully deleted session', { sessionId, document: (session.document as any)?.originalName, messageCount: session.messages.length });
 
         sendResponse(res, null, 'Session deleted successfully');
     } catch (error) {

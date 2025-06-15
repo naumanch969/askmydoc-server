@@ -31,7 +31,6 @@ export class DocumentWorker extends BaseWorker {
       await document.save();
       logger.info(`Document ${documentId} processed successfully`);
 
-      console.log('document', document);
       // Create Session
       const session = new Session({
         user: document.user,

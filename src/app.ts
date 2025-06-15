@@ -2,15 +2,21 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { createServer } from 'http';
 import redisClient from './config/redis.js';
 import { initializeWorkers, shutdownWorkers } from './workers/index.js';
 import router from './routes/index.js';
 import { logger } from './utils/logger.js';
 import { connectDB } from './config/database.js';
 import mongoose from 'mongoose';
+import { SocketService } from './services/socketService.js';
 
 const app = express();
+const httpServer = createServer(app);
 const port = process.env.PORT || 4000;
+
+// Initialize Socket.IO service
+const socketService = new SocketService(httpServer);
 
 // Middleware
 app.use(helmet());
@@ -39,7 +45,7 @@ async function startServer() {
         // Redis automatically connected when we make ioredis instance.
 
         // Start server
-        app.listen(port, () => {
+        httpServer.listen(port, () => {
             logger.info(`Server running on port ${port}`);
         });
     } catch (error) {

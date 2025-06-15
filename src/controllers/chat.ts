@@ -25,7 +25,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        const session = await Session.findOne({ _id: sessionId, user })
+        const session = await Session.findOne({ _id: sessionId, user: userId })
             .populate('document');
 
         if (!session) {
