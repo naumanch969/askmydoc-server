@@ -4,6 +4,7 @@ import { getEmbeddingsModel, initVectorStoreFromPDF } from '../utils/vectorStore
 import Document from '../models/document.js';
 import { DocumentStatus } from '../enums/index.js';
 import Session from '../models/session.js';
+import { getIO } from '../config/socket.js';
 
 export class DocumentWorker extends BaseWorker {
   constructor() {
@@ -12,7 +13,8 @@ export class DocumentWorker extends BaseWorker {
 
   protected async process(job: any): Promise<void> {
     try {
-      const { documentId } = job.data;
+      const { documentId, socketId } = job.data;
+      const io = getIO();
       logger.info(`Processing document ${documentId}`);
 
       const document = await Document.findById(documentId).populate('user');
@@ -23,8 +25,22 @@ export class DocumentWorker extends BaseWorker {
       document.status = DocumentStatus.PROCESSING;
       await document.save();
 
-      await initVectorStoreFromPDF(document);
+      // Emit processing started event
+      io.to(socketId).emit('document_processing_started', {
+        documentId: document._id,
+        timestamp: new Date().toISOString()
+      });
 
+      // Emit progress updates during processing
+      const progressCallback = (progress: number) => {
+        io.to(socketId).emit('document_processing_progress', {
+          documentId: document._id,
+          progress: Math.round(progress * 100),
+          timestamp: new Date().toISOString()
+        });
+      };
+
+      await initVectorStoreFromPDF(document, progressCallback);
 
       document.status = DocumentStatus.INDEXED;
       document.processedAt = new Date();
@@ -47,6 +63,13 @@ export class DocumentWorker extends BaseWorker {
 
       await session.save();
       logger.info(`Session created for document ${documentId}`, { sessionId: session._id });
+
+      // Emit processing completed event with session ID
+      io.to(socketId).emit('document_processing_completed', {
+        documentId: document._id,
+        sessionId: session._id,
+        timestamp: new Date().toISOString()
+      });
 
     } catch (error) {
       logger.error(`Error processing document:`, error);

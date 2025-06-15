@@ -1,4 +1,3 @@
-import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { logger } from '../utils/logger.js';
 import { buildRephraseQuestionChain, buildRetrievalChain, buildAnswerPrompt, buildConversationChain, wrapWithHistoryChain } from '../utils/chain.js';
@@ -8,6 +7,14 @@ import { getRedisMessageHistory } from '../utils/messageHistory.js';
 import { googleGenAi } from '../config/model.js';
 import Session from '../models/session.js';
 import { SocketMessage } from '../interfaces/index.js';
+import { DocumentWorker } from '../workers/documentWorker.js';
+import Document from '../models/document.js';
+import { getNamespace } from '../utils/index.js';
+import path from 'path';
+import fs from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import { initializeSocket } from '../config/socket.js';
+import User from '../models/user.js';
 
 interface ChatMessage {
     sessionId: string;
@@ -16,23 +23,105 @@ interface ChatMessage {
 }
 
 export class SocketService {
-    private io: SocketIOServer;
+    private documentWorker: DocumentWorker;
 
     constructor(server: HTTPServer) {
-        this.io = new SocketIOServer(server, {
-            cors: {
-                origin: ["http://localhost:3000", "http://localhost:3001"],
-                methods: ["GET", "POST"],
-                credentials: true
-            }
-        });
-
-        this.initializeSocketHandlers();
+        const io = initializeSocket(server);
+        this.documentWorker = new DocumentWorker();
+        this.initializeSocketHandlers(io);
     }
 
-    private initializeSocketHandlers() {
-        this.io.on('connection', (socket) => {
+    private initializeSocketHandlers(io: any) {
+        io.on('connection', (socket: any) => {
             logger.info(`Client connected: ${socket.id}`);
+
+            // Handle file upload
+            socket.on('upload_document', async (data: { file: Buffer, filename: string, clerkId: string }) => {
+                try {
+                    const { file, filename, clerkId } = data;
+                    logger.info('Received document upload request', { filename, clerkId, fileSize: file.length });
+
+                    if (!clerkId) {
+                        logger.warn('Unauthorized document upload attempt');
+                        socket.emit('upload_error', {
+                            message: 'User not authenticated',
+                            timestamp: new Date().toISOString()
+                        });
+                        return;
+                    }
+
+                    const user = await User.findOne({ clerkId })
+                    if (!user) {
+                        logger.warn('Unauthorized document upload attempt');
+                        socket.emit('upload_error', {
+                            message: 'User not authenticated',
+                            timestamp: new Date().toISOString()
+                        });
+                        return;
+                    }
+
+
+                    // Generate unique filename and path
+                    const uniqueFilename = `${uuidv4()}-${filename}`;
+                    const uploadPath = path.join(process.cwd(), 'uploads', uniqueFilename);
+
+                    // Ensure uploads directory exists
+                    await fs.mkdir(path.join(process.cwd(), 'uploads'), { recursive: true });
+
+                    // Save file to disk
+                    await fs.writeFile(uploadPath, file);
+
+                    const namespace = getNamespace(clerkId, filename);
+                    logger.info('Generated namespace for document', { namespace });
+
+                    // Check if document with same namespace already exists
+                    const existingDocument = await Document.findOne({ namespace });
+                    if (existingDocument) {
+                        logger.warn('Document with same namespace already exists', { namespace, existingDocumentId: existingDocument._id });
+                        socket.emit('upload_error', { message: 'A document with this name already exists. Please use a different name or delete the existing document.', timestamp: new Date().toISOString() });
+                        return;
+                    }
+
+                    // Create document in database
+                    const document = new Document({
+                        user: user._id,
+                        clerkId,
+                        filename: uniqueFilename,
+                        originalName: filename,
+                        mimeType: 'application/pdf', // Assuming PDF for now
+                        size: file.length,
+                        namespace,
+                        path: uploadPath,
+                        status: 'pending',
+                    });
+
+                    await document.save();
+                    logger.info('Document saved to database', {
+                        documentId: document._id,
+                        namespace,
+                        status: document.status
+                    });
+
+                    // Add document processing job to queue with socket ID
+                    await this.documentWorker.addJob({
+                        documentId: String(document._id),
+                        socketId: socket.id
+                    });
+
+                    logger.info('Document processing job added to queue', { documentId: document._id });
+
+                } catch (error) {
+                    logger.error('Upload document error:', {
+                        error,
+                        filename: data.filename,
+                        clerkId: data.clerkId
+                    });
+                    socket.emit('upload_error', {
+                        message: 'Failed to upload document',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
 
             // Join a chat session
             socket.on('join_session', (sessionId: string) => {
@@ -71,7 +160,7 @@ export class SocketService {
                     }
 
                     // Emit thinking state
-                    this.io.to(sessionId).emit('ai_state', {
+                    io.to(sessionId).emit('ai_state', {
                         state: 'thinking',
                         message: 'Analyzing your question...',
                         timestamp: new Date().toISOString()
@@ -100,7 +189,7 @@ export class SocketService {
                     const finalRetrievalChain = wrapWithHistoryChain(conversationalRetrievalChain);
 
                     // Emit generating state
-                    this.io.to(sessionId).emit('ai_state', {
+                    io.to(sessionId).emit('ai_state', {
                         state: 'generating',
                         message: 'Generating response...',
                         timestamp: new Date().toISOString()
@@ -118,7 +207,7 @@ export class SocketService {
                     const tempMessageId = Date.now().toString();
 
                     // Initialize the streaming message
-                    this.io.to(sessionId).emit('stream_start', {
+                    io.to(sessionId).emit('stream_start', {
                         messageId: tempMessageId,
                         timestamp: new Date().toISOString()
                     });
@@ -127,7 +216,7 @@ export class SocketService {
                     for await (const chunk of stream) {
                         fullResponse += chunk;
                         // Emit each chunk to the client
-                        this.io.to(sessionId).emit('stream_chunk', {
+                        io.to(sessionId).emit('stream_chunk', {
                             messageId: tempMessageId,
                             content: chunk,
                             timestamp: new Date().toISOString()
@@ -135,7 +224,7 @@ export class SocketService {
                     }
 
                     // Emit stream end
-                    this.io.to(sessionId).emit('stream_end', {
+                    io.to(sessionId).emit('stream_end', {
                         messageId: tempMessageId,
                         timestamp: new Date().toISOString()
                     });
@@ -200,7 +289,7 @@ export class SocketService {
 
     // Method to broadcast system messages
     public broadcastSystemMessage(sessionId: string, message: string) {
-        this.io.to(sessionId).emit('system_message', {
+        io.to(sessionId).emit('system_message', {
             message,
             timestamp: new Date().toISOString()
         });

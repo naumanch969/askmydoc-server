@@ -29,15 +29,29 @@ export const loadAndSplitPDF = async (document: DocumentInstance, chunkSize = 51
     return splitDocs;
 };
 
-export const initVectorStoreFromPDF = async (document: DocumentInstance): Promise<void> => {
+export const initVectorStoreFromPDF = async (document: DocumentInstance, progressCallback?: (progress: number) => void): Promise<void> => {
     try {
         const splitDocs = await loadAndSplitPDF(document);
         const embeddings = getEmbeddingsModel();
 
-        await PineconeStore.fromDocuments(splitDocs, embeddings, {
-            pineconeIndex,
-            namespace: document.namespace,
-        });
+        // Calculate total chunks for progress tracking
+        const totalChunks = splitDocs.length;
+        let processedChunks = 0;
+
+        // Process documents in batches to track progress
+        const batchSize = 10;
+        for (let i = 0; i < splitDocs.length; i += batchSize) {
+            const batch = splitDocs.slice(i, i + batchSize);
+            await PineconeStore.fromDocuments(batch, embeddings, {
+                pineconeIndex,
+                namespace: document.namespace,
+            });
+
+            processedChunks += batch.length;
+            if (progressCallback) {
+                progressCallback(processedChunks / totalChunks);
+            }
+        }
     } catch (error) {
         logger.error("Error initializing vector store from PDF:", error);
         throw new Error("Failed to initialize vector store from PDF");
